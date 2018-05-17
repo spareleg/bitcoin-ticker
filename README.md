@@ -8,3 +8,4 @@ It uses Bitfinex API (https://bitfinex.readme.io/v2/reference#rest-public-candle
 
 # Connections
 ![Connections](http://embedded-lab.com/blog/wp-content/uploads/2017/02/pinconnections.png)
+![BTC Ticker](photo2.jpg)
