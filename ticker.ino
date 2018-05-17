@@ -6,8 +6,8 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_ILI9341.h"
 
-const char* ssid = "Osmium";
-const char* password = "@3.1415926";
+const char* ssid = "your-wi-fi-host";
+const char* password = "your-wi-fi-password";
 
 // API DOCS: https://bitfinex.readme.io/v2/reference#rest-public-candles
 const char* apiHost = "api.bitfinex.com";
