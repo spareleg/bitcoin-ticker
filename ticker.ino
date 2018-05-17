@@ -208,7 +208,7 @@ byte lastCandleTimeframe = -1;
 
 void drawPrice(float price, float low, float high) {
   if (lastPrice != price) {
-    tft.fillRect(0, 240-bottomPanel, 180, bottomPanel, ILI9341_BLACK);
+    tft.fillRect(0, 240-bottomPanel, 190, bottomPanel, ILI9341_BLACK);
     tft.setCursor(0,240-bottomPanel);
     tft.setTextSize(5);
     tft.setTextColor(price > lastPrice ? ILI9341_GREEN : ILI9341_RED);   
