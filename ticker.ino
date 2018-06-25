@@ -6,8 +6,8 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_ILI9341.h"
 
-const char* ssid = "your-wi-fi-host";
-const char* password = "your-wi-fi-password";
+const char* ssid = "****"; // wi-fi host
+const char* password = "****"; // wi-fi password
 
 // API DOCS: https://bitfinex.readme.io/v2/reference#rest-public-candles
 const char* apiHost = "api.bitfinex.com";
@@ -16,7 +16,7 @@ const String candleTimeframes[] = {"5m", "1h", "6h", "1D"};
 byte currentCandleTimeframe = 1; // index from candleTimeframes[] array
 const int httpsPort = 443;
 const int apiInterval = 10000; // ms
-const size_t bufferSize = candlesLimit*JSON_ARRAY_SIZE(6) + JSON_ARRAY_SIZE(candlesLimit) + 1460;
+const size_t bufferSize = candlesLimit * JSON_ARRAY_SIZE(6) + JSON_ARRAY_SIZE(candlesLimit) + 1460;
 const uint16_t volColor = 0x22222a;
 
 // SPI Display setup:
@@ -48,7 +48,7 @@ void setup() {
   }
   tft.println("\nWiFi connected");
 
-  tft.println("\nWaiting for time");
+  tft.println("\nWaiting for current time");
   configTime(3 * 3600, 0, "pool.ntp.org", "time.nist.gov");
   while (!time(nullptr)) {
     tft.print(".");
@@ -70,22 +70,22 @@ void loop() {
     currentCandleTimeframe++;
     if (currentCandleTimeframe == 4) currentCandleTimeframe = 0;
   }
-  
+
   if (currentMs - apiPrevMs >= apiInterval) {
     apiPrevMs = currentMs;
-    requestAPI();   
+    requestAPI();
   }
 }
 
 String getApiRequestUrl() {
-  return "/v2/candles/trade:" + candleTimeframes[currentCandleTimeframe] + 
+  return "/v2/candles/trade:" + candleTimeframes[currentCandleTimeframe] +
          ":tBTCUSD/hist?limit=" + String(candlesLimit);
 }
 
 void printTime() {
   time_t now = time(nullptr);
   tft.fillRect(0, 0, 320, topPanel, ILI9341_BLACK);
-  tft.setCursor(0,0);
+  tft.setCursor(0, 0);
   tft.setTextSize(3);
   tft.setTextColor(ILI9341_WHITE);
   tft.print(weekDay[weekday(now)]);
@@ -104,7 +104,7 @@ void printTime() {
 void requestAPI() {
   WiFiClientSecure client;
   if (!client.connect(apiHost, httpsPort)) {
-    error("API request failed.\nPlease check your Wi-Fi source.");
+    error("Internet connection lost.\nCheck the Wi-Fi source.");
     return;
   }
   client.print("GET " + getApiRequestUrl() + " HTTP/1.1\r\n" +
@@ -132,7 +132,7 @@ JsonArray& strToJson(String str) {
 // API data format: [i][ MTS, OPEN, CLOSE, HIGH, LOW, VOLUME ]
 void drawCandles(JsonArray& data) {
   if (!data.success()) {
-    error("JSON parsing failed.\nAPI responded with invalid JSON data.");
+    error("JSON parsing failed.\nAPI fucked up with JSON data.");
     return;
   }
   int len = data.size();
@@ -145,7 +145,7 @@ void drawCandles(JsonArray& data) {
   float ph = data[0][3];
   float vl = data[0][5];
   float vh = data[0][5];
-  for (int i=0; i < len; i++) {
+  for (int i = 0; i < len; i++) {
     JsonArray& candle = data[i];
     float h = candle[3];
     float l = candle[4];
@@ -158,8 +158,8 @@ void drawCandles(JsonArray& data) {
   // Draw bottom panel with price, high and low:
   drawPrice(data[0][2], pl, ph);
   // Draw candles:
-  int prevVY= getY(data[0][5], vl, vh);
-  for (int i=0; i < len; i++) {
+  int prevVY = getY(data[0][5], vl, vh);
+  for (int i = 0; i < len; i++) {
     // [ MTS, OPEN, CLOSE, HIGH, LOW, VOLUME ]
     JsonArray& candle = data[i];
     int oy = getY(candle[1], pl, ph);
@@ -174,88 +174,89 @@ void drawCandles(JsonArray& data) {
 
 // Remap dollars data to pixels
 int getY(float val, float minVal, float maxVal) {
-  return round(map(val, minVal, maxVal, 235-bottomPanel, topPanel+2));
+  return round(map(val, minVal, maxVal, 235 - bottomPanel, topPanel + 2));
 }
 
-void drawCandle(int i, int oy, int cy, int ly, int hy, int vy, int prevVY) { 
-  float w = 320.0/candlesLimit;
-  float center = 320.0 - (w/2.0);
-  center -= (i*w);
+void drawCandle(int i, int oy, int cy, int ly, int hy, int vy, int prevVY) {
+  float w = 320.0 / candlesLimit;
+  float center = 320.0 - (w / 2.0);
+  center -= (i * w);
   uint16_t color = cy > oy ? ILI9341_RED : ILI9341_GREEN;
 
   // Background:
-  tft.fillRect(center-(w/2), topPanel, ceil(w), 240-(topPanel+bottomPanel), ILI9341_BLACK);
-  
+  tft.fillRect(center - (w / 2), topPanel, ceil(w), 240 - (topPanel + bottomPanel), ILI9341_BLACK);
+
   // Volume:
-  tft.drawLine((center+w)-4, prevVY, center+4, vy, volColor);
-  tft.drawLine(center+4, vy, center-4, vy, volColor);
-  if (i == candlesLimit-1) tft.drawLine(0, vy, center-4, vy, volColor);
+  tft.drawLine((center + w) - 4, prevVY, center + 4, vy, volColor);
+  tft.drawLine(center + 4, vy, center - 4, vy, volColor);
+  if (i == candlesLimit - 1) tft.drawLine(0, vy, center - 4, vy, volColor);
 
   // Head and tail:
   tft.drawLine(center, hy, center, ly, color);
-  
+
   // Candle body:
-  int bodyHeight = abs(cy-oy);
+  int bodyHeight = abs(cy - oy);
   if (bodyHeight < 1) bodyHeight = 1; // at least 1px, if candle body not formed yet
-  tft.fillRect(center-3, min(oy,cy), 7, bodyHeight, color);
+  tft.fillRect(center - 3, min(oy, cy), 7, bodyHeight, color);
 }
 
 // To track if chanded:
 float lastPrice = 0;
 float lastLow = 0;
 float lastHigh = 0;
-byte lastCandleTimeframe = -1;
+int lastCandleTimeframe = -1;
 
 void drawPrice(float price, float low, float high) {
   if (lastPrice != price) {
-    tft.fillRect(0, 240-bottomPanel, 190, bottomPanel, ILI9341_BLACK);
-    tft.setCursor(0,240-bottomPanel);
+    tft.fillRect(0, 240 - bottomPanel, 190, bottomPanel, ILI9341_BLACK);
+    tft.setCursor(0, 240 - bottomPanel);
     tft.setTextSize(5);
-    tft.setTextColor(price > lastPrice ? ILI9341_GREEN : ILI9341_RED);   
-    lastPrice = price; 
+    tft.setTextColor(price > lastPrice ? ILI9341_GREEN : ILI9341_RED);
+    lastPrice = price;
     tft.print("$");
     tft.print(round(price));
   }
   if (high != lastHigh) {
-    tft.fillRect(190, 240-bottomPanel, 120, bottomPanel/2, ILI9341_BLACK);
-    tft.setTextColor(ILI9341_WHITE);    
-    lastHigh = high;  
-    tft.setCursor(190, 240-bottomPanel);
+    tft.fillRect(190, 240 - bottomPanel, 120, bottomPanel / 2, ILI9341_BLACK);
+    tft.setTextColor(ILI9341_WHITE);
+    lastHigh = high;
+    tft.setCursor(190, 240 - bottomPanel);
     tft.setTextSize(2);
     tft.print("H $");
-    tft.print(round(high)); 
-  }  
+    tft.print(round(high));
+  }
   if (low != lastLow) {
-    tft.fillRect(190, 240-bottomPanel/2, 120, bottomPanel/2, ILI9341_BLACK);
-    tft.setTextColor(ILI9341_WHITE);    
-    lastLow = low;   
-    tft.setCursor(190, 243-floor(bottomPanel/2));
+    tft.fillRect(190, 240 - bottomPanel / 2, 120, bottomPanel / 2, ILI9341_BLACK);
+    tft.setTextColor(ILI9341_WHITE);
+    lastLow = low;
+    tft.setCursor(190, 243 - floor(bottomPanel / 2));
     tft.setTextSize(2);
     tft.print("L $");
-    tft.print(round(low)); 
+    tft.print(round(low));
   }
   if (lastCandleTimeframe != currentCandleTimeframe) {
-    lastCandleTimeframe = currentCandleTimeframe;    
-    tft.fillRect(310, 240-bottomPanel, 10, bottomPanel, ILI9341_BLACK);
-    tft.setTextColor(ILI9341_WHITE);    
+    lastCandleTimeframe = currentCandleTimeframe;
+    tft.fillRect(310, 240 - bottomPanel, 10, bottomPanel, ILI9341_BLACK);
+    tft.setTextColor(ILI9341_WHITE);
     tft.setTextSize(2);
     String timeframe = candleTimeframes[currentCandleTimeframe];
-    tft.setCursor(310, 240-bottomPanel);
+    tft.setCursor(310, 240 - bottomPanel);
     tft.print(timeframe[0]);
-    tft.setCursor(310, 243-floor(bottomPanel/2));
-    tft.print(timeframe[1]);   
+    tft.setCursor(310, 243 - floor(bottomPanel / 2));
+    tft.print(timeframe[1]);
   }
 }
 
 void error(String text) {
-  tft.fillRect(0, topPanel, 320, 240-topPanel, ILI9341_RED);
+  tft.fillRect(0, topPanel, 320, 240 - topPanel, ILI9341_RED);
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
-  tft.setCursor(5, topPanel+5);
+  tft.setCursor(100, topPanel + 15);
   tft.setTextWrap(true);
-  tft.print(text);
+  tft.print("Holy shit!\n"+text);
   tft.setTextWrap(false);
   // Reset last data to make it redraw after error screen
-  lastPrice = lastLow = lastHigh = 0; 
+  lastPrice = lastLow = lastHigh = 0;
+  lastCandleTimeframe = -1;
 }
 
