@@ -90,7 +90,7 @@ void setup() {
   // Connecting to WS:
 	webSocket.beginSSL(wsApiHost, wsApiPort, getWsApiUrl());
 	webSocket.onEvent(webSocketEvent);
-	webSocket.setReconnectInterval(5000);
+	webSocket.setReconnectInterval(1000);
 }
 
 unsigned long lastPrintTime = 0;
@@ -157,10 +157,16 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       DeserializationError err = deserializeJson(doc, payload);
       if (err) {
         error("JSON parsing failed.\nWS fucked up with JSON data.");
+        break;
       }
+      
       JsonObject candle = doc.as<JsonObject>();
 
       unsigned int openTime = candle["k"]["t"];
+      if (openTime == 0) {
+        error("Got empty object from WS API");
+        break;
+      }
       bool candleIsNew = openTime > lastCandleOpenTime;
       if (candleIsNew) {
         lastCandleOpenTime = openTime;
@@ -207,8 +213,10 @@ void requestRestApi() {
       DeserializationError err = deserializeJson(doc, line);
       if (err) {
         error("JSON parsing failed.\nAPI fucked up with JSON data.");
+        return;
       } else if (doc.as<JsonArray>().size() == 0) {
         error("Empty JSON array");
+        return;
       }
 
       // Data format: [[TS, OPEN, HIGH, LOW, CLOSE, VOL, ...], ...]
