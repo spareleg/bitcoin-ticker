@@ -84,8 +84,9 @@ void setup() {
   yield();
   printTime();
 
-  // Load all candles
-  requestRestApi();
+  // Load and draw all candles
+  while (!requestRestApi()) {}
+  drawCandles();
 
   // Connecting to WS:
 	webSocket.beginSSL(wsApiHost, wsApiPort, getWsApiUrl());
@@ -105,7 +106,8 @@ void loop() {
     if (currentTimeframe == timeframes) currentTimeframe = 0;
     webSocket.disconnect();
     webSocket.beginSSL(wsApiHost, wsApiPort, getWsApiUrl());
-    requestRestApi();
+    while (!requestRestApi()) {}
+    drawCandles();
   }
 
 	webSocket.loop();
@@ -159,7 +161,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
         error("JSON parsing failed.\nWS fucked up with JSON data.");
         break;
       }
-      
+
       JsonObject candle = doc.as<JsonObject>();
 
       unsigned int openTime = candle["k"]["t"];
@@ -194,11 +196,11 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   }
 }
 
-void requestRestApi() {
+bool requestRestApi() {
   WiFiClientSecure client;
   if (!client.connect(restApiHost, 443)) {
     error("Internet connection lost.\nCheck the Wi-Fi source.");
-    return;
+    return false;
   }
   client.print("GET " + getRestApiUrl() + " HTTP/1.1\r\n" +
                "Host: " + restApiHost + "\r\n" +
@@ -213,10 +215,10 @@ void requestRestApi() {
       DeserializationError err = deserializeJson(doc, line);
       if (err) {
         error("JSON parsing failed.\nAPI fucked up with JSON data.");
-        return;
+        return false;
       } else if (doc.as<JsonArray>().size() == 0) {
         error("Empty JSON array");
-        return;
+        return false;
       }
 
       // Data format: [[TS, OPEN, HIGH, LOW, CLOSE, VOL, ...], ...]
@@ -229,9 +231,7 @@ void requestRestApi() {
         candles[i].v = _candles[i][5];
       }
       lastCandleOpenTime = _candles[candlesLimit-1][0];
-
-      drawCandles();
-      break;
+      return true;
     }
   }
 }
