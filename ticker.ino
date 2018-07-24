@@ -149,7 +149,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
       wsFails++;
-      if (wsFails > 2) error("WS disconnected");
+      if (wsFails > 2) error("WS disconnected", true);
       break;
     case WStype_CONNECTED:
       break;
@@ -158,7 +158,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       DynamicJsonDocument doc;
       DeserializationError err = deserializeJson(doc, payload);
       if (err) {
-        error("JSON parsing failed.\nWS fucked up with JSON data.");
+        error("JSON parsing failed.\nWS fucked up with JSON data.", true);
         break;
       }
 
@@ -166,7 +166,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
       unsigned int openTime = candle["k"]["t"];
       if (openTime == 0) {
-        error("Got empty object from WS API");
+        error("Got empty object from WS API", true);
         break;
       }
       bool candleIsNew = openTime > lastCandleOpenTime;
@@ -199,7 +199,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 bool requestRestApi() {
   WiFiClientSecure client;
   if (!client.connect(restApiHost, 443)) {
-    error("Internet connection lost.\nCheck the Wi-Fi source.");
+    error("Internet connection lost.\nCheck the Wi-Fi source.", false);
     return false;
   }
   client.print("GET " + getRestApiUrl() + " HTTP/1.1\r\n" +
@@ -214,10 +214,10 @@ bool requestRestApi() {
       DynamicJsonDocument doc;
       DeserializationError err = deserializeJson(doc, line);
       if (err) {
-        error("JSON parsing failed.\nAPI fucked up with JSON data.");
+        error("JSON parsing failed.\nAPI fucked up with JSON data.", false);
         return false;
       } else if (doc.as<JsonArray>().size() == 0) {
-        error("Empty JSON array");
+        error("Empty JSON array", false);
         return false;
       }
 
@@ -348,7 +348,7 @@ void drawPrice() {
   }
 }
 
-void error(String text) {
+void error(String text, bool redraw) {
   tft.fillRect(0, topPanel, 320, 240 - topPanel, ILI9341_RED);
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
@@ -357,6 +357,7 @@ void error(String text) {
   tft.print("Holy shit!\n"+text);
   tft.setTextWrap(false);
   delay(6000);
+  if (!redraw) return;
   // Reset last data to make it redraw after error screen
   lastPrice = lastLow = lastHigh = lastTimeframe = -1;
   drawCandles();
