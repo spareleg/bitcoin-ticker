@@ -1,3 +1,5 @@
+// board manager -> Esp 8266 -> ver. 2.4.*   (2.5 breakes wifi client requests!)
+
 #include <Arduino.h>
 #include <TimeLib.h>
 #include <time.h>
@@ -10,10 +12,10 @@
 #include "Adafruit_ILI9341.h"
 
 // Settings:
-const char* ssid = ""; // wi-fi host
-const char* password = ""; // wi-fi password
-const bool time24h = false;
-const int timezone = 3;
+const char* ssid = "Osmium"; // wi-fi host
+const char* password = "@3.1415926"; // wi-fi password
+const bool time24h = true;
+const int timezone = 2;
 
 // REST API DOCS: https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
 const char* restApiHost = "api.binance.com";
@@ -33,6 +35,7 @@ const char* weekDay[] = {"", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 
 ESP8266WiFiMulti WiFiMulti;
 WebSocketsClient webSocket;
+StaticJsonDocument<8750> jsonDoc;
 #define TFT_CS D2
 #define TFT_DC D1
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
@@ -155,16 +158,12 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       break;
     case WStype_TEXT:
       wsFails = 0;
-      DynamicJsonDocument doc;
-      DeserializationError err = deserializeJson(doc, payload);
+      DeserializationError err = deserializeJson(jsonDoc, payload);
       if (err) {
-        error("JSON parsing failed.\nWS fucked up with JSON data.", true);
+        error(err.c_str(), true);
         break;
       }
-
-      JsonObject candle = doc.as<JsonObject>();
-
-      unsigned int openTime = candle["k"]["t"];
+      unsigned int openTime = jsonDoc["k"]["t"];
       if (openTime == 0) {
         error("Got empty object from WS API", true);
         break;
@@ -176,11 +175,11 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
           candles[i-1] = candles[i];
         }
       }
-      candles[candlesLimit-1].o = candle["k"]["o"];
-      candles[candlesLimit-1].h = candle["k"]["h"];
-      candles[candlesLimit-1].l = candle["k"]["l"];
-      candles[candlesLimit-1].c = candle["k"]["c"];
-      candles[candlesLimit-1].v = candle["k"]["v"];
+      candles[candlesLimit-1].o = jsonDoc["k"]["o"];
+      candles[candlesLimit-1].h = jsonDoc["k"]["h"];
+      candles[candlesLimit-1].l = jsonDoc["k"]["l"];
+      candles[candlesLimit-1].c = jsonDoc["k"]["c"];
+      candles[candlesLimit-1].v = jsonDoc["k"]["v"];
 
       // If we get new low/high we need to redraw all candles, otherwise just last one:
       if (candleIsNew ||
@@ -204,25 +203,24 @@ bool requestRestApi() {
   }
   client.print("GET " + getRestApiUrl() + " HTTP/1.1\r\n" +
                "Host: " + restApiHost + "\r\n" +
-               "Accept: */*\r\n" +
+               "Accept: application/json\r\n" +
                "User-Agent: Mozilla/4.0 (compatible; esp8266 Lua;)\r\n\r\n");
 
   while (client.connected()) {
-    String line = client.readStringUntil('\n');
-    if (line.startsWith("[")) {
-      line.trim();
-      DynamicJsonDocument doc;
-      DeserializationError err = deserializeJson(doc, line);
+    String line = client.readStringUntil('\r');
+    line.trim();
+    if (line.startsWith("[") && line.endsWith("]")) {
+      DeserializationError err = deserializeJson(jsonDoc, line);    
       if (err) {
-        error("JSON parsing failed.\nAPI fucked up with JSON data.", false);
+        error(err.c_str(), false);
         return false;
-      } else if (doc.as<JsonArray>().size() == 0) {
+      } else if (jsonDoc.as<JsonArray>().size() == 0) {
         error("Empty JSON array", false);
         return false;
       }
-
+      
       // Data format: [[TS, OPEN, HIGH, LOW, CLOSE, VOL, ...], ...]
-      JsonArray _candles = doc.as<JsonArray>();
+      JsonArray _candles = jsonDoc.as<JsonArray>();
       for (int i = 0; i < candlesLimit; i++) {
         candles[i].o = _candles[i][1];
         candles[i].h = _candles[i][2];
@@ -234,6 +232,7 @@ bool requestRestApi() {
       return true;
     }
   }
+  error("No JSON found in API response.", false);
 }
 
 void drawCandles() {
