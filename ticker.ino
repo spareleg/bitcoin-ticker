@@ -1,9 +1,7 @@
 // board manager -> Esp 8266 -> ver. 2.4.*   (2.5 breakes wifi client requests!)
 
-#include <Arduino.h>
-#include <TimeLib.h>
+#include <Timezone.h>
 #include <time.h>
-#include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
@@ -11,11 +9,14 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_ILI9341.h"
 
-// Settings:
-const char* ssid = "Osmium"; // wi-fi host
-const char* password = "@3.1415926"; // wi-fi password
+// WiFi:
+const char* ssid = ""; // wi-fi host
+const char* password = ""; // wi-fi password
+
+// Time Zone:
 const bool time24h = true;
-const int timezone = 2;
+TimeChangeRule summer = {"EEST", Last, Sun, Mar, 3, 180}; 
+TimeChangeRule standard = {"EET ", Last, Sun, Oct, 4, 120};  
 
 // REST API DOCS: https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
 const char* restApiHost = "api.binance.com";
@@ -39,6 +40,8 @@ StaticJsonDocument<8750> jsonDoc;
 #define TFT_CS D2
 #define TFT_DC D1
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
+Timezone myTZ(summer, standard);
+TimeChangeRule *tcr;
 
 typedef struct {
   float l; // Low
@@ -76,7 +79,7 @@ void setup() {
 
   // Settings time:
   tft.println("\nWaiting for current time");
-  configTime(timezone * 3600, 0, "pool.ntp.org", "time.nist.gov");
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
   while (true) {
     time_t now = time(nullptr);
     if (now && year(now) > 2017) break;
@@ -117,7 +120,7 @@ void loop() {
 }
 
 void printTime() {
-  time_t now = time(nullptr);
+  time_t now = myTZ.toLocal(time(nullptr), &tcr);
   tft.fillRect(0, 0, 320, topPanel, ILI9341_BLACK);
   tft.setCursor(time24h ? 8 : 0, 0);
   tft.setTextSize(3);
@@ -210,7 +213,7 @@ bool requestRestApi() {
     String line = client.readStringUntil('\r');
     line.trim();
     if (line.startsWith("[") && line.endsWith("]")) {
-      DeserializationError err = deserializeJson(jsonDoc, line);    
+      DeserializationError err = deserializeJson(jsonDoc, line);
       if (err) {
         error(err.c_str(), false);
         return false;
@@ -218,7 +221,7 @@ bool requestRestApi() {
         error("Empty JSON array", false);
         return false;
       }
-      
+
       // Data format: [[TS, OPEN, HIGH, LOW, CLOSE, VOL, ...], ...]
       JsonArray _candles = jsonDoc.as<JsonArray>();
       for (int i = 0; i < candlesLimit; i++) {
