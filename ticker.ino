@@ -1,4 +1,5 @@
-// board manager -> Esp 8266 -> ver. 2.4.*   (2.5 breakes wifi client requests!)
+// board manager -> Esp 8266 -> ver. 2.4 (2.5 breakes wifi client requests)
+// ArduinoJson lib -> ver. 6.9 (6.10 breaks websockets decoding)
 
 #include <Timezone.h>
 #include <time.h>
@@ -10,8 +11,8 @@
 #include "Adafruit_ILI9341.h"
 
 // WiFi:
-const char* ssid = ""; // wi-fi host
-const char* password = ""; // wi-fi password
+const char* ssid = "Osmium"; // wi-fi host
+const char* password = "@3.1415926"; // wi-fi password
 
 // Time Zone:
 const bool time24h = true;
@@ -155,7 +156,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
       wsFails++;
-      if (wsFails > 2) error("WS disconnected", true);
+      if (wsFails > 2) error("WS disconnected");
       break;
     case WStype_CONNECTED:
       break;
@@ -163,12 +164,12 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       wsFails = 0;
       DeserializationError err = deserializeJson(jsonDoc, payload);
       if (err) {
-        error(err.c_str(), true);
+        error(err.c_str());
         break;
       }
       unsigned int openTime = jsonDoc["k"]["t"];
       if (openTime == 0) {
-        error("Got empty object from WS API", true);
+        error("Got empty object from WS API");
         break;
       }
       bool candleIsNew = openTime > lastCandleOpenTime;
@@ -201,7 +202,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 bool requestRestApi() {
   WiFiClientSecure client;
   if (!client.connect(restApiHost, 443)) {
-    error("Internet connection lost.\nCheck the Wi-Fi source.", false);
+    error("Internet connection lost.\nCheck the Wi-Fi source.");
     return false;
   }
   client.print("GET " + getRestApiUrl() + " HTTP/1.1\r\n" +
@@ -215,10 +216,10 @@ bool requestRestApi() {
     if (line.startsWith("[") && line.endsWith("]")) {
       DeserializationError err = deserializeJson(jsonDoc, line);
       if (err) {
-        error(err.c_str(), false);
+        error(err.c_str());
         return false;
       } else if (jsonDoc.as<JsonArray>().size() == 0) {
-        error("Empty JSON array", false);
+        error("Empty JSON array");
         return false;
       }
 
@@ -235,7 +236,7 @@ bool requestRestApi() {
       return true;
     }
   }
-  error("No JSON found in API response.", false);
+  error("No JSON found in API response.");
 }
 
 void drawCandles() {
@@ -350,7 +351,7 @@ void drawPrice() {
   }
 }
 
-void error(String text, bool redraw) {
+void error(String text) {
   tft.fillRect(0, topPanel, 320, 240 - topPanel, ILI9341_RED);
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
@@ -358,8 +359,7 @@ void error(String text, bool redraw) {
   tft.setTextWrap(true);
   tft.print("Holy shit!\n"+text);
   tft.setTextWrap(false);
-  delay(6000);
-  if (!redraw) return;
+  delay(5000);
   // Reset last data to make it redraw after error screen
   lastPrice = lastLow = lastHigh = lastTimeframe = -1;
   drawCandles();
