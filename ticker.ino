@@ -11,8 +11,8 @@
 #include "Adafruit_ILI9341.h"
 
 // WiFi:
-const char* ssid = "Osmium"; // wi-fi host
-const char* password = "@3.1415926"; // wi-fi password
+const char* ssid = ""; // wi-fi host
+const char* password = ""; // wi-fi password
 
 // Time Zone:
 const bool time24h = true;
