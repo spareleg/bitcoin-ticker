@@ -317,26 +317,23 @@ void drawPrice() {
     tft.setTextSize(5);
     tft.setTextColor(price > lastPrice ? ILI9341_GREEN : ILI9341_RED);
     lastPrice = price;
-    tft.print("$");
-    tft.print(price);
+    tft.print(formatPrice(price));
   }
   if (ph != lastHigh) {
-    tft.fillRect(190, 240 - bottomPanel, 120, bottomPanel / 2, ILI9341_BLACK);
+    tft.fillRect(197, 240 - bottomPanel, 113, bottomPanel / 2, ILI9341_BLACK);
     tft.setTextColor(ILI9341_WHITE);
     lastHigh = ph;
-    tft.setCursor(190, 240 - bottomPanel);
+    tft.setCursor(197, 240 - bottomPanel);
     tft.setTextSize(2);
-    tft.print("H $");
-    tft.print(round(ph));
+    tft.printf("H%*s", 7, formatPrice(round(ph)).c_str());
   }
   if (pl != lastLow) {
-    tft.fillRect(190, 240 - bottomPanel / 2, 120, bottomPanel / 2, ILI9341_BLACK);
+    tft.fillRect(197, 240 - bottomPanel / 2, 113, bottomPanel / 2, ILI9341_BLACK);
     tft.setTextColor(ILI9341_WHITE);
     lastLow = pl;
-    tft.setCursor(190, 243 - floor(bottomPanel / 2));
+    tft.setCursor(197, 243 - floor(bottomPanel / 2));
     tft.setTextSize(2);
-    tft.print("L $");
-    tft.print(round(pl));
+    tft.printf("L%*s", 7, formatPrice(round(pl)).c_str());
   }
   if (lastTimeframe != currentTimeframe) {
     lastTimeframe = currentTimeframe;
@@ -348,6 +345,25 @@ void drawPrice() {
     tft.print(timeframe[0]);
     tft.setCursor(310, 243 - floor(bottomPanel / 2));
     tft.print(timeframe[1]);
+  }
+}
+
+String formatPrice(int n) {
+  char snum[4];
+  if (n < 1000) { 
+    sprintf(snum, "%d", n%1000);
+    replaceZeros(snum);
+    return snum;
+  }
+  sprintf(snum, ",%03d", n%1000);
+  replaceZeros(snum);
+  return formatPrice(n/1000) + snum;
+}
+
+// Replaces zeros with capital letter "o"
+void replaceZeros(char num[]) {
+  for (int i = 0; i< strlen(num); i++) {
+    if (num[i] == '0') num[i] = 'O';
   }
 }
 
