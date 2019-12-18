@@ -16,15 +16,21 @@
 // To install library in Arduino IDE: Sketch -> Include Library -> Manage Libraries
 // To install board in Arduino IDE: Tools -> Board -> Boards Manager    
 
+// ---------- Upload settings ---------
+// Board: NodeMCU 1.0 (ESP-12E Module)
+// Upload Speed: 460800
+// Cpu Freq: 160MHz
+// ------------------------------------
 
 // Wi-Fi connection settings:
 const char* ssid     = ""; // wi-fi host
 const char* password = ""; // wi-fi password
 
 // Time Zone:
-const bool time24h = true;
 TimeChangeRule summer = {"EEST", Last, Sun, Mar, 3, 180}; 
-TimeChangeRule standard = {"EET ", Last, Sun, Oct, 4, 120};  
+TimeChangeRule standard = {"EET ", Last, Sun, Oct, 4, 120};
+const char* weekDay[] = {"", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+const char* monthName[] = {"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
 // REST API DOCS: https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
 const char* restApiHost = "api.binance.com";
@@ -40,7 +46,6 @@ const int wsApiPort = 9443;
 // Layout:
 const byte topPanel = 22;
 const byte bottomPanel = 36;
-const char* weekDay[] = {"", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 
 ESP8266WiFiMulti WiFiMulti;
 WebSocketsClient webSocket;
@@ -130,22 +135,15 @@ void loop() {
 void printTime() {
   time_t now = myTZ.toLocal(time(nullptr), &tcr);
   tft.fillRect(0, 0, 320, topPanel, ILI9341_BLACK);
-  tft.setCursor(time24h ? 8 : 0, 0);
+  tft.setCursor(-1, 0);
   tft.setTextSize(3);
   tft.setTextColor(ILI9341_WHITE);
-  tft.print(weekDay[weekday(now)]);
-  char buf[10];
-  char* separator = time24h ? "  " : " ";
-  sprintf(buf, "%s%02d.%02d", separator, day(now), month(now));
-  tft.print(buf);
-  sprintf(buf, "%s%02d:%02d", separator, time24h ? hour(now) : hourFormat12(now), minute(now));
-  tft.print(buf);
-  if (time24h) return;
-  if (isAM(now)) {
-    tft.print(" AM");
-  } else {
-    tft.print(" PM");
-  }
+ 
+  tft.printf("%02d %s  %s  %02d:%02d", 
+    day(now), monthName[month(now)], 
+    weekDay[weekday(now)], 
+    hour(now), minute(now)
+  );
 }
 
 String getRestApiUrl() {
