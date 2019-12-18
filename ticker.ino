@@ -1,17 +1,24 @@
-// board manager -> Esp 8266 -> ver. 2.4 (2.5 breakes wifi client requests)
-// ArduinoJson lib -> ver. 6.9 (6.10 breaks websockets decoding)
+#include "SPI.h" 
 
-#include <Timezone.h>
-#include <time.h>
-#include <ESP8266WiFiMulti.h>
-#include <WebSocketsClient.h>
-#include <ArduinoJson.h>
-#include "SPI.h"
-#include "Adafruit_GFX.h"
-#include "Adafruit_ILI9341.h"
+  
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!! Library versions should match to mentioned below !!!
+// !!!!!!!!!!!! Otherwise code won't work !!!!!!!!!!!!!!!!!                                         
+//---------------------------------------+------------------+-------------------+------ +
+#include <ESP8266WiFiMulti.h> // Board   | esp8266          | ESP8266 Community | 2.4.* |
+#include <Timezone.h>         // Library | Timezone         | Jack Christensen  | 1.2.* |
+#include <time.h>             // Library | Time             | Michael Margolis  | 1.6.* |
+#include <WebSocketsClient.h> // Library | WebSockets       | Markus Sattler    | 2.1.* |
+#include <ArduinoJson.h>      // Library | ArduinoJson      | Benoit Blanchon   | 6.9.* |
+#include "Adafruit_GFX.h"     // Library | Adafruit GFX     | Adafruit          | 1.6.* |
+#include "Adafruit_ILI9341.h" // Library | Adafruit ILI9341 | Adafruit          | 1.5.* |
+//---------------------------------------+------------------+-------------------+-------+
+// To install library in Arduino IDE: Sketch -> Include Library -> Manage Libraries
+// To install board in Arduino IDE: Tools -> Board -> Boards Manager    
 
-// WiFi:
-const char* ssid = ""; // wi-fi host
+
+// Wi-Fi connection settings:
+const char* ssid     = ""; // wi-fi host
 const char* password = ""; // wi-fi password
 
 // Time Zone:
@@ -312,7 +319,7 @@ int lastTimeframe = -1;
 void drawPrice() {
   int price = round(candles[candlesLimit-1].c);
   if (lastPrice != price) {
-    tft.fillRect(0, 240 - bottomPanel, 190, bottomPanel, ILI9341_BLACK);
+    tft.fillRect(0, 240 - bottomPanel, 197, bottomPanel, ILI9341_BLACK);
     tft.setCursor(0, 240 - bottomPanel);
     tft.setTextSize(5);
     tft.setTextColor(price > lastPrice ? ILI9341_GREEN : ILI9341_RED);
