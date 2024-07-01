@@ -378,7 +378,7 @@ void error(String text) {
   tft.setTextSize(2);
   tft.setCursor(100, topPanel + 15);
   tft.setTextWrap(true);
-  tft.print("Holy shit!\n"+text);
+  tft.print("Holy cow!\n"+text);
   tft.setTextWrap(false);
   delay(5000);
   // Reset last data to make it redraw after error screen
