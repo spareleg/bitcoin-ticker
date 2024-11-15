@@ -139,8 +139,8 @@ void printTime() {
   tft.setTextSize(3);
   tft.setTextColor(ILI9341_WHITE);
  
-  tft.printf("%02d %s  %s  %02d:%02d", 
-    day(now), monthName[month(now)], 
+  tft.printf("%02d-%02d-%02d %s %02d:%02d", 
+    year(now)-2000, month(now), day(now), 
     weekDay[weekday(now)], 
     hour(now), minute(now)
   );
@@ -354,15 +354,10 @@ void drawPrice() {
 }
 
 String formatPrice(int n) {
-  char snum[4];
-  if (n < 1000) { 
-    sprintf(snum, "%d", n%1000);
-    replaceZeros(snum);
-    return snum;
-  }
-  sprintf(snum, ",%03d", n%1000);
+  char snum[6];
+  sprintf(snum, "%6d", n);
   replaceZeros(snum);
-  return formatPrice(n/1000) + snum;
+  return snum;
 }
 
 // Replaces zeros with capital letter "o"
