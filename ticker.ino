@@ -3,18 +3,20 @@
   
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // !!! Library versions should match to mentioned below !!!
-// !!!!!!!!!!!! Otherwise code won't work !!!!!!!!!!!!!!!!!                                         
-//---------------------------------------+------------------+-------------------+------ +
-#include <ESP8266WiFiMulti.h> // Board   | esp8266          | ESP8266 Community | 2.4.* |
-#include <Timezone.h>         // Library | Timezone         | Jack Christensen  | 1.2.* |
-#include <time.h>             // Library | Time             | Michael Margolis  | 1.6.* |
-#include <WebSocketsClient.h> // Library | WebSockets       | Markus Sattler    | 2.1.* |
-#include <ArduinoJson.h>      // Library | ArduinoJson      | Benoit Blanchon   | 6.9.* |
-#include "Adafruit_GFX.h"     // Library | Adafruit GFX     | Adafruit          | 1.6.* |
-#include "Adafruit_ILI9341.h" // Library | Adafruit ILI9341 | Adafruit          | 1.5.* |
-//---------------------------------------+------------------+-------------------+-------+
+// !!!!!!!!!!!! Otherwise code won't work !!!!!!!!!!!!!!!!!
+//---------------------------------------+------------------+-------------------+------- +
+#include <ESP8266WiFiMulti.h> // Board   | esp8266          | ESP8266 Community | 2.4.2  | TODO: migrate to the latest
+#include <Timezone.h>         // Library | Timezone         | Jack Christensen  | 1.2.*  | currently the latest
+#include <time.h>             // Library | Time             | Michael Margolis  | 1.6.*  | currently the latest
+#include <WebSocketsClient.h> // Library | WebSockets       | Markus Sattler    | 2.3.6  | TODO: migrate to the latest
+#include <ArduinoJson.h>      // Library | ArduinoJson      | Benoit Blanchon   | 6.9.1  | TODO: migrate to the latest
+#include "Adafruit_GFX.h"     // Library | Adafruit GFX     | Adafruit          | 1.11.* | currently the latest
+#include "Adafruit_ILI9341.h" // Library | Adafruit ILI9341 | Adafruit          | 1.6.*  | currently the latest
+//---------------------------------------+------------------+-------------------+--------+
 // To install library in Arduino IDE: Sketch -> Include Library -> Manage Libraries
 // To install board in Arduino IDE: Tools -> Board -> Boards Manager    
+// If it's not in the list add "http://arduino.esp8266.com/stable/package_esp8266com_index.json" 
+// to the additional board manager URLS in the settings
 
 // ---------- Upload settings ---------
 // Board: NodeMCU 1.0 (ESP-12E Module)
@@ -83,6 +85,7 @@ void setup() {
   // Connecting to WiFi:
   tft.print("\nConnecting to ");
   tft.println(ssid);
+  WiFi.mode(WIFI_STA);
   WiFiMulti.addAP(ssid, password);
 	while(WiFiMulti.run() != WL_CONNECTED) {
     tft.print(".");
@@ -108,7 +111,7 @@ void setup() {
   drawCandles();
 
   // Connecting to WS:
-	webSocket.beginSSL(wsApiHost, wsApiPort, getWsApiUrl());
+	webSocket.beginSSL(wsApiHost, wsApiPort, getWsApiUrl().c_str());
 	webSocket.onEvent(webSocketEvent);
 	webSocket.setReconnectInterval(1000);
 }
@@ -124,7 +127,7 @@ void loop() {
     currentTimeframe++;
     if (currentTimeframe == timeframes) currentTimeframe = 0;
     webSocket.disconnect();
-    webSocket.beginSSL(wsApiHost, wsApiPort, getWsApiUrl());
+    webSocket.beginSSL(wsApiHost, wsApiPort, getWsApiUrl().c_str());
     while (!requestRestApi()) {}
     drawCandles();
   }
@@ -242,6 +245,7 @@ bool requestRestApi() {
     }
   }
   error("No JSON found in API response.");
+  return false;
 }
 
 void drawCandles() {
