@@ -4,15 +4,15 @@
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // !!! Library versions should match to mentioned below !!!
 // !!!!!!!!!!!! Otherwise code won't work !!!!!!!!!!!!!!!!!
-//---------------------------------------+------------------+-------------------+------- +
-#include <ESP8266WiFiMulti.h> // Board   | esp8266          | ESP8266 Community | 2.4.2  | TODO: migrate to the latest
-#include <Timezone.h>         // Library | Timezone         | Jack Christensen  | 1.2.*  | currently the latest
-#include <time.h>             // Library | Time             | Michael Margolis  | 1.6.*  | currently the latest
-#include <WebSocketsClient.h> // Library | WebSockets       | Markus Sattler    | 2.3.6  | TODO: migrate to the latest
-#include <ArduinoJson.h>      // Library | ArduinoJson      | Benoit Blanchon   | 6.9.1  | TODO: migrate to the latest
-#include "Adafruit_GFX.h"     // Library | Adafruit GFX     | Adafruit          | 1.11.* | currently the latest
-#include "Adafruit_ILI9341.h" // Library | Adafruit ILI9341 | Adafruit          | 1.6.*  | currently the latest
-//---------------------------------------+------------------+-------------------+--------+
+//---------------------------------------+------------------+-------------------+-------- +
+#include <ESP8266WiFiMulti.h> // Board   | esp8266          | ESP8266 Community | 3.1.*   |
+#include <Timezone.h>         // Library | Timezone         | Jack Christensen  | 1.2.*   |
+#include <time.h>             // Library | Time             | Michael Margolis  | 1.6.*   |
+#include <WebSocketsClient.h> // Library | WebSockets       | Markus Sattler    | 2.6.*   |
+#include <ArduinoJson.h>      // Library | ArduinoJson      | Benoit Blanchon   | 7.2.*   |
+#include "Adafruit_GFX.h"     // Library | Adafruit GFX     | Adafruit          | 1.10.14 | 1.11.* prints text with too much blinking
+#include "Adafruit_ILI9341.h" // Library | Adafruit ILI9341 | Adafruit          | 1.6.*   |
+//---------------------------------------+------------------+-------------------+---------+
 // To install library in Arduino IDE: Sketch -> Include Library -> Manage Libraries
 // To install board in Arduino IDE: Tools -> Board -> Boards Manager    
 // If it's not in the list add "http://arduino.esp8266.com/stable/package_esp8266com_index.json" 
@@ -51,7 +51,7 @@ const byte bottomPanel = 36;
 
 ESP8266WiFiMulti WiFiMulti;
 WebSocketsClient webSocket;
-StaticJsonDocument<8750> jsonDoc;
+JsonDocument jsonDoc;
 #define TFT_CS D2
 #define TFT_DC D1
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
@@ -66,7 +66,7 @@ typedef struct {
   float v; // Volume
 } Candle;
 Candle candles[candlesLimit];
-unsigned long lastCandleOpenTime = 0;
+unsigned long long lastCandleOpenTime = 0;
 float ph; // Price High
 float pl; // Price Low
 float vh; // Volume High
@@ -170,14 +170,14 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       break;
     case WStype_TEXT:
       wsFails = 0;
-      DeserializationError err = deserializeJson(jsonDoc, payload);
+      DeserializationError err = deserializeJson(jsonDoc, (char*) payload);
       if (err) {
         error(err.c_str());
         break;
       }
-      unsigned int openTime = jsonDoc["k"]["t"];
+      unsigned long long openTime = jsonDoc["k"]["t"];
       if (openTime == 0) {
-        error("Got empty object from WS API");
+        error("Failed to parse JSON from WS");
         break;
       }
       bool candleIsNew = openTime > lastCandleOpenTime;
@@ -209,6 +209,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
 bool requestRestApi() {
   WiFiClientSecure client;
+  client.setInsecure();
   if (!client.connect(restApiHost, 443)) {
     error("Internet connection lost.\nCheck the Wi-Fi source.");
     return false;
