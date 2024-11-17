@@ -32,14 +32,15 @@ const char* password = ""; // wi-fi password
 TimeChangeRule summer = {"EEST", Last, Sun, Mar, 3, 180}; 
 TimeChangeRule standard = {"EET ", Last, Sun, Oct, 4, 120};
 const char* weekDay[] = {"", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-const char* monthName[] = {"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
 // REST API DOCS: https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
 const char* restApiHost = "api.binance.com";
 const byte candlesLimit = 24;
 const byte timeframes = 4;
 const char* candlesTimeframes[timeframes] = {"3m", "1h", "1d", "1w"};
-const uint16_t volColor = 0x22222a;
+// RGB565 Colors (https://rgbcolorpicker.com/565)
+const uint16_t volColor = 0x000f;
+const uint16_t brightRed = 0xFA08;
 
 // WS API DOCS: https://github.com/binance-exchange/binance-official-api-docs/blob/master/web-socket-streams.md
 const char* wsApiHost = "stream.binance.com";
@@ -291,7 +292,7 @@ void drawCandle(int i) {
   float w = 320.0 / candlesLimit;
   float center = w / 2.0;
   center += (i * w);
-  uint16_t color = cy > oy ? ILI9341_RED : ILI9341_GREEN;
+  uint16_t color = cy > oy ? brightRed : ILI9341_GREEN;
 
   // Background:
   tft.fillRect((center - w) + 5, topPanel, ceil(w), 240 - (topPanel + bottomPanel), ILI9341_BLACK);
@@ -325,7 +326,7 @@ void drawPrice() {
     tft.fillRect(0, 240 - bottomPanel, 197, bottomPanel, ILI9341_BLACK);
     tft.setCursor(0, 240 - bottomPanel);
     tft.setTextSize(5);
-    tft.setTextColor(price > lastPrice ? ILI9341_GREEN : ILI9341_RED);
+    tft.setTextColor(price > lastPrice ? ILI9341_GREEN : brightRed);
     lastPrice = price;
     tft.print(formatPrice(price));
   }
