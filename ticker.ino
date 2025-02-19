@@ -1,6 +1,5 @@
-#include "SPI.h" 
+#include "SPI.h"
 
-  
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // !!! Library versions should match to mentioned below !!!
 // !!!!!!!!!!!! Otherwise code won't work !!!!!!!!!!!!!!!!!
@@ -14,8 +13,8 @@
 #include "Adafruit_ILI9341.h" // Library | Adafruit ILI9341 | Adafruit          | 1.6.*   |
 //---------------------------------------+------------------+-------------------+---------+
 // To install library in Arduino IDE: Sketch -> Include Library -> Manage Libraries
-// To install board in Arduino IDE: Tools -> Board -> Boards Manager    
-// If it's not in the list add "http://arduino.esp8266.com/stable/package_esp8266com_index.json" 
+// To install board in Arduino IDE: Tools -> Board -> Boards Manager
+// If it's not in the list add "http://arduino.esp8266.com/stable/package_esp8266com_index.json"
 // to the additional board manager URLS in the settings
 
 // ---------- Upload settings ---------
@@ -34,7 +33,7 @@ const char* ssid     = ""; // wi-fi host
 const char* password = ""; // wi-fi password
 
 // Time Zone:
-TimeChangeRule summer = {"EEST", Last, Sun, Mar, 3, 180}; 
+TimeChangeRule summer = {"EEST", Last, Sun, Mar, 3, 180};
 TimeChangeRule standard = {"EET ", Last, Sun, Oct, 4, 120};
 const char* weekDay[] = {"", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 
@@ -185,7 +184,11 @@ void redrawCharts() {
   drawCandles();
 }
 
+// Tracking last displayed minute to not redraw time if not changed
+int lastMinute = -1;
+
 void loadingMessage(String text) {
+  lastMinute = -1; // Forces to redraw time even if minute hasn't changed
   tft.fillRect(0, 0, 320, topPanel, ILI9341_BLACK);
   tft.setCursor(92, 0);
   tft.setTextSize(2);
@@ -193,7 +196,6 @@ void loadingMessage(String text) {
   tft.print("Loading " + text + "...");
 }
 
-int lastMinute = -1;
 void printTime() {
   time_t now = myTZ.toLocal(time(nullptr), &tcr);
   int currentMinute = minute(now);
@@ -204,16 +206,16 @@ void printTime() {
   tft.setCursor(-1, 0);
   tft.setTextSize(3);
   tft.setTextColor(ILI9341_WHITE);
- 
-  tft.printf("%02d-%02d-%02d %s %02d:%02d", 
-    year(now)-2000, month(now), day(now), 
-    weekDay[weekday(now)], 
+
+  tft.printf("%02d-%02d-%02d %s %02d:%02d",
+    year(now)-2000, month(now), day(now),
+    weekDay[weekday(now)],
     hour(now), currentMinute
   );
 }
 
 String getRestApiUrl() {
-  return "/api/v1/klines?symbol=" + String(candlesCurrencies[currentCurrency]) + 
+  return "/api/v1/klines?symbol=" + String(candlesCurrencies[currentCurrency]) +
          "&interval=" + String(candlesTimeframes[currentTimeframe]) +
          "&limit=" + String(candlesLimit);
 }
@@ -261,7 +263,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
       // If we get new low/high we need to redraw all candles, otherwise just last one:
       if (candleIsNew ||
-          candles[candlesLimit-1].l < pl || 
+          candles[candlesLimit-1].l < pl ||
           candles[candlesLimit-1].h > ph ||
           candles[candlesLimit-1].v > vh)
       {
@@ -390,7 +392,7 @@ int displayedTimeframe = -1;
 void drawPrice() {
   int price = round(candles[candlesLimit-1].c);
   if (lastPrice != price) {
-    tft.fillRect(0, 240 - bottomPanel, 197, bottomPanel, ILI9341_BLACK);
+    tft.fillRect(0, 240 - bottomPanel, 192, bottomPanel, ILI9341_BLACK);
     tft.setCursor(0, 240 - bottomPanel);
     tft.setTextSize(5);
     tft.setTextColor(price > lastPrice ? ILI9341_GREEN : brightRed);
@@ -398,22 +400,22 @@ void drawPrice() {
     tft.print(formatPrice(price));
   }
   if (ph != lastHigh) {
-    tft.fillRect(197, 240 - bottomPanel, 113, bottomPanel / 2, ILI9341_BLACK);
+    tft.fillRect(195, 240 - bottomPanel, 88, bottomPanel / 2, ILI9341_BLACK);
     tft.setTextColor(ILI9341_WHITE);
     lastHigh = ph;
-    tft.setCursor(197, 240 - bottomPanel);
+    tft.setCursor(195, 240 - bottomPanel);
     tft.setTextSize(2);
     tft.print(formatPrice(round(ph)).c_str());
   }
   if (pl != lastLow) {
-    tft.fillRect(197, 240 - bottomPanel / 2, 113, bottomPanel / 2, ILI9341_BLACK);
+    tft.fillRect(195, 240 - bottomPanel / 2, 88, bottomPanel / 2, ILI9341_BLACK);
     tft.setTextColor(ILI9341_WHITE);
     lastLow = pl;
-    tft.setCursor(197, 243 - floor(bottomPanel / 2));
+    tft.setCursor(195, 243 - floor(bottomPanel / 2));
     tft.setTextSize(2);
     tft.print(formatPrice(round(pl)).c_str());
   }
-  if (displayedTimeframe != currentTimeframe || 
+  if (displayedTimeframe != currentTimeframe ||
       displayedCurrency  != currentCurrency
   ) {
     displayedTimeframe = currentTimeframe;
