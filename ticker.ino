@@ -9,7 +9,7 @@
 #include <Timezone.h>         // Library | Timezone         | Jack Christensen  | 1.2.*   |
 #include <time.h>             // Library | Time             | Michael Margolis  | 1.6.*   |
 #include <WebSocketsClient.h> // Library | WebSockets       | Markus Sattler    | 2.6.*   |
-#include <ArduinoJson.h>      // Library | ArduinoJson      | Benoit Blanchon   | 7.2.*   |
+#include <ArduinoJson.h>      // Library | ArduinoJson      | Benoit Blanchon   | 7.3.*   |
 #include "Adafruit_GFX.h"     // Library | Adafruit GFX     | Adafruit          | 1.10.14 | 1.11.* prints text with too much blinking
 #include "Adafruit_ILI9341.h" // Library | Adafruit ILI9341 | Adafruit          | 1.6.*   |
 //---------------------------------------+------------------+-------------------+---------+
@@ -24,6 +24,11 @@
 // Cpu Freq: 160MHz
 // ------------------------------------
 
+// Buttons settings
+const int currencyButtonPin = D8;
+const int timeframeButtonPin = D0;
+const unsigned long debounceDelay = 50;
+
 // Wi-Fi connection settings:
 const char* ssid     = ""; // wi-fi host
 const char* password = ""; // wi-fi password
@@ -36,8 +41,10 @@ const char* weekDay[] = {"", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 // REST API DOCS: https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
 const char* restApiHost = "api.binance.com";
 const byte candlesLimit = 24;
-const byte timeframes = 4;
-const char* candlesTimeframes[timeframes] = {"3m", "1h", "1d", "1w"};
+const byte totalTimeframes = 5;
+const char* candlesTimeframes[totalTimeframes] = {"3m", "1h", "1d", "1w", "1M"};
+const byte totalCurrencies = 2;
+const char* candlesCurrencies[totalCurrencies] = {"BTCUSDT", "ETHUSDT"};
 // RGB565 Colors (https://rgbcolorpicker.com/565)
 const uint16_t volColor = 0x000f;
 const uint16_t brightRed = 0xFA08;
@@ -71,9 +78,18 @@ unsigned long long lastCandleOpenTime = 0;
 float ph; // Price High
 float pl; // Price Low
 float vh; // Volume High
-float vl; // Volume Low
+
+int currencyButtonState;
+int timeframeButtonState;
+int lastCurrencyButtonState = LOW;
+int lastTimeframeButtonState = LOW;
+unsigned long lastCurrencyButtonDebounceTime = 0;
+unsigned long lastTimeframeButtonDebounceTime = 0;
 
 void setup() {
+  pinMode(currencyButtonPin, INPUT);
+  pinMode(timeframeButtonPin, INPUT);
+
   // Setting display:
   tft.begin();
   tft.setRotation(3);
@@ -117,27 +133,73 @@ void setup() {
 	webSocket.setReconnectInterval(1000);
 }
 
-unsigned long lastPrintTime = 0;
+byte currentCurrency = 0;
 byte currentTimeframe = 0;
-void loop() {
-  unsigned long currentMs = millis();
 
-  if (currentMs - lastPrintTime >= 35000 && second(time(nullptr)) < 25) {
-    lastPrintTime = currentMs;
-    printTime();
-    currentTimeframe++;
-    if (currentTimeframe == timeframes) currentTimeframe = 0;
-    webSocket.disconnect();
-    webSocket.beginSSL(wsApiHost, wsApiPort, getWsApiUrl().c_str());
-    while (!requestRestApi()) {}
-    drawCandles();
+void loop() {
+  printTime();
+
+  int currencyButtonReading = digitalRead(currencyButtonPin);
+  if (currencyButtonReading != lastCurrencyButtonState) {
+    lastCurrencyButtonDebounceTime = millis();
+    lastCurrencyButtonState = currencyButtonReading;
+  }
+
+  int timeframeButtonReading = digitalRead(timeframeButtonPin);
+  if (timeframeButtonReading != lastTimeframeButtonState) {
+    lastTimeframeButtonDebounceTime = millis();
+    lastTimeframeButtonState = timeframeButtonReading;
+  }
+
+  if ((millis() - lastCurrencyButtonDebounceTime) > debounceDelay) {
+    if (currencyButtonReading != currencyButtonState) {
+      currencyButtonState = currencyButtonReading;
+      if (currencyButtonState == HIGH) {
+        currentCurrency++;
+        if (currentCurrency == totalCurrencies) currentCurrency = 0;
+        loadingMessage(String(candlesCurrencies[currentCurrency]).substring(0, 3));
+        redrawCharts();
+      }
+    }
+  }
+
+  if ((millis() - lastTimeframeButtonDebounceTime) > debounceDelay) {
+    if (timeframeButtonReading != timeframeButtonState) {
+      timeframeButtonState = timeframeButtonReading;
+      if (timeframeButtonState == HIGH) {
+        currentTimeframe++;
+        if (currentTimeframe == totalTimeframes) currentTimeframe = 0;
+        loadingMessage(candlesTimeframes[currentTimeframe]);
+        redrawCharts();
+      }
+    }
   }
 
 	webSocket.loop();
 }
 
+void redrawCharts() {
+  webSocket.disconnect();
+  webSocket.beginSSL(wsApiHost, wsApiPort, getWsApiUrl().c_str());
+  while (!requestRestApi()) {}
+  drawCandles();
+}
+
+void loadingMessage(String text) {
+  tft.fillRect(0, 0, 320, topPanel, ILI9341_BLACK);
+  tft.setCursor(92, 0);
+  tft.setTextSize(2);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.print("Loading " + text + "...");
+}
+
+int lastMinute = -1;
 void printTime() {
   time_t now = myTZ.toLocal(time(nullptr), &tcr);
+  int currentMinute = minute(now);
+  if (currentMinute == lastMinute) return;
+  lastMinute = currentMinute;
+
   tft.fillRect(0, 0, 320, topPanel, ILI9341_BLACK);
   tft.setCursor(-1, 0);
   tft.setTextSize(3);
@@ -146,17 +208,20 @@ void printTime() {
   tft.printf("%02d-%02d-%02d %s %02d:%02d", 
     year(now)-2000, month(now), day(now), 
     weekDay[weekday(now)], 
-    hour(now), minute(now)
+    hour(now), currentMinute
   );
 }
 
 String getRestApiUrl() {
-  return "/api/v1/klines?symbol=BTCUSDT&interval=" + String(candlesTimeframes[currentTimeframe]) +
+  return "/api/v1/klines?symbol=" + String(candlesCurrencies[currentCurrency]) + 
+         "&interval=" + String(candlesTimeframes[currentTimeframe]) +
          "&limit=" + String(candlesLimit);
 }
 
 String getWsApiUrl() {
-  return "/ws/btcusdt@kline_" + String(candlesTimeframes[currentTimeframe]);
+  String s = String(candlesCurrencies[currentCurrency]);
+  s.toLowerCase();
+  return "/ws/" + s + "@kline_" + String(candlesTimeframes[currentTimeframe]);
 }
 
 unsigned int wsFails = 0;
@@ -196,8 +261,9 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
       // If we get new low/high we need to redraw all candles, otherwise just last one:
       if (candleIsNew ||
-          candles[candlesLimit-1].l < pl || candles[candlesLimit-1].h > ph ||
-          candles[candlesLimit-1].v < vl || candles[candlesLimit-1].v > vh)
+          candles[candlesLimit-1].l < pl || 
+          candles[candlesLimit-1].h > ph ||
+          candles[candlesLimit-1].v > vh)
       {
         drawCandles();
       } else {
@@ -255,12 +321,10 @@ void drawCandles() {
   ph = candles[0].h;
   pl = candles[0].l;
   vh = candles[0].v;
-  vl = candles[0].v;
   for (int i = 0; i < candlesLimit; i++) {
     if (candles[i].h > ph) ph = candles[i].h;
     if (candles[i].l < pl) pl = candles[i].l;
     if (candles[i].v > vh) vh = candles[i].v;
-    if (candles[i].v < vl) vl = candles[i].v;
   }
 
   // Draw bottom panel with price, high and low:
@@ -274,7 +338,9 @@ void drawCandles() {
 
 // Remap dollars data to pixels
 int getY(float val, float minVal, float maxVal) {
-  return round(map(val, minVal, maxVal, 235 - bottomPanel, topPanel + 2));
+  float minValY = 235 - bottomPanel;
+  float maxValY = topPanel + 2;
+  return round((val - minVal) * (maxValY - minValY) / (maxVal - minVal) + minValY);
 }
 
 // Data format: [[TS, OPEN, HIGH, LOW, CLOSE, VOL, ...]]
@@ -283,10 +349,10 @@ void drawCandle(int i) {
   int hy = getY(candles[i].h, pl, ph);
   int ly = getY(candles[i].l, pl, ph);
   int cy = getY(candles[i].c, pl, ph);
-  int vy = getY(candles[i].v, vl, vh);
+  int vy = getY(candles[i].v, 0, vh);
   int prevVY = vy;
   if (i != 0) {
-    prevVY = getY(candles[i-1].v, vl, vh);
+    prevVY = getY(candles[i-1].v, 0, vh);
   }
 
   float w = 320.0 / candlesLimit;
@@ -318,7 +384,8 @@ void drawCandle(int i) {
 int lastPrice = -1;
 float lastLow = -1;
 float lastHigh = -1;
-int lastTimeframe = -1;
+int displayedCurrency = -1;
+int displayedTimeframe = -1;
 
 void drawPrice() {
   int price = round(candles[candlesLimit-1].c);
@@ -336,7 +403,7 @@ void drawPrice() {
     lastHigh = ph;
     tft.setCursor(197, 240 - bottomPanel);
     tft.setTextSize(2);
-    tft.printf("H%*s", 7, formatPrice(round(ph)).c_str());
+    tft.print(formatPrice(round(ph)).c_str());
   }
   if (pl != lastLow) {
     tft.fillRect(197, 240 - bottomPanel / 2, 113, bottomPanel / 2, ILI9341_BLACK);
@@ -344,18 +411,20 @@ void drawPrice() {
     lastLow = pl;
     tft.setCursor(197, 243 - floor(bottomPanel / 2));
     tft.setTextSize(2);
-    tft.printf("L%*s", 7, formatPrice(round(pl)).c_str());
+    tft.print(formatPrice(round(pl)).c_str());
   }
-  if (lastTimeframe != currentTimeframe) {
-    lastTimeframe = currentTimeframe;
-    tft.fillRect(310, 240 - bottomPanel, 10, bottomPanel, ILI9341_BLACK);
-    tft.setTextColor(ILI9341_WHITE);
+  if (displayedTimeframe != currentTimeframe || 
+      displayedCurrency  != currentCurrency
+  ) {
+    displayedTimeframe = currentTimeframe;
+    displayedCurrency = currentCurrency;
+    tft.fillRect(286, 240 - bottomPanel, 34, bottomPanel, ILI9341_BLACK);
+    tft.setTextColor(ILI9341_YELLOW);
     tft.setTextSize(2);
-    String timeframe = candlesTimeframes[currentTimeframe];
-    tft.setCursor(310, 240 - bottomPanel);
-    tft.print(timeframe[0]);
-    tft.setCursor(310, 243 - floor(bottomPanel / 2));
-    tft.print(timeframe[1]);
+    tft.setCursor(286, 240 - bottomPanel);
+    tft.print(String(candlesCurrencies[currentCurrency]).substring(0, 3));
+    tft.setCursor(286, 243 - floor(bottomPanel / 2));
+    tft.print(candlesTimeframes[currentTimeframe]);
   }
 }
 
@@ -383,6 +452,6 @@ void error(String text) {
   tft.setTextWrap(false);
   delay(5000);
   // Reset last data to make it redraw after error screen
-  lastPrice = lastLow = lastHigh = lastTimeframe = -1;
+  lastPrice = lastLow = lastHigh = displayedTimeframe = displayedCurrency = -1;
   drawCandles();
 }
