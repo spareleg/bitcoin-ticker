@@ -41,9 +41,10 @@ const char* weekDay[] = {"", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 const char* restApiHost = "api.binance.com";
 const byte candlesLimit = 24;
 const byte totalTimeframes = 5;
-const char* candlesTimeframes[totalTimeframes] = {"3m", "1h", "1d", "1w", "1M"};
+const char* timeframes[totalTimeframes] = {"3m", "1h", "1d", "1w", "1M"};
 const byte totalCurrencies = 3;
-const char* candlesCurrencies[totalCurrencies] = {"BTCUSDT", "ETHUSDT", "ETHBTC"};
+const char* currencies[totalCurrencies] = {"BTCUSDT", "ETHUSDT", "ETHBTC"};
+const char* currencyNames[totalCurrencies] = {"BTC", "ETH", "E/B"};
 // RGB565 Colors (https://rgbcolorpicker.com/565)
 const uint16_t volColor = 0x000f;
 const uint16_t brightRed = 0xFA08;
@@ -156,7 +157,7 @@ void loop() {
       if (currencyButtonState == HIGH) {
         currentCurrency++;
         if (currentCurrency == totalCurrencies) currentCurrency = 0;
-        loadingMessage(String(candlesCurrencies[currentCurrency]).substring(0, 3));
+        loadingMessage(currencyNames[currentCurrency]);
         redrawCharts();
       }
     }
@@ -168,7 +169,7 @@ void loop() {
       if (timeframeButtonState == HIGH) {
         currentTimeframe++;
         if (currentTimeframe == totalTimeframes) currentTimeframe = 0;
-        loadingMessage(candlesTimeframes[currentTimeframe]);
+        loadingMessage(timeframes[currentTimeframe]);
         redrawCharts();
       }
     }
@@ -215,15 +216,15 @@ void printTime() {
 }
 
 String getRestApiUrl() {
-  return "/api/v1/klines?symbol=" + String(candlesCurrencies[currentCurrency]) +
-         "&interval=" + String(candlesTimeframes[currentTimeframe]) +
+  return "/api/v1/klines?symbol=" + String(currencies[currentCurrency]) +
+         "&interval=" + String(timeframes[currentTimeframe]) +
          "&limit=" + String(candlesLimit);
 }
 
 String getWsApiUrl() {
-  String s = String(candlesCurrencies[currentCurrency]);
+  String s = String(currencies[currentCurrency]);
   s.toLowerCase();
-  return "/ws/" + s + "@kline_" + String(candlesTimeframes[currentTimeframe]);
+  return "/ws/" + s + "@kline_" + String(timeframes[currentTimeframe]);
 }
 
 byte wsFails = 0;
@@ -394,7 +395,7 @@ void drawPrice() {
   float priceF = candles[candlesLimit-1].c;
   String price = formatPrice(priceF);
   if (displayedPrice != price) {
-    tft.fillRect(0, 240 - bottomPanel, 193, bottomPanel, ILI9341_BLACK);
+    tft.fillRect(0, 240 - bottomPanel, 192, bottomPanel, ILI9341_BLACK);
     tft.setCursor(0, 240 - bottomPanel);
     tft.setTextSize(5);
     tft.setTextColor(priceF > displayedPriceF ? ILI9341_GREEN : brightRed);
@@ -404,7 +405,7 @@ void drawPrice() {
   }
   String high = formatPrice(ph);
   if (high != displayedHigh) {
-    tft.fillRect(195, 240 - bottomPanel, 89, bottomPanel / 2, ILI9341_BLACK);
+    tft.fillRect(192, 240 - bottomPanel, 91, bottomPanel / 2, ILI9341_BLACK);
     tft.setTextColor(ILI9341_WHITE);
     tft.setCursor(195, 240 - bottomPanel);
     tft.setTextSize(2);
@@ -413,7 +414,7 @@ void drawPrice() {
   }
   String low = formatPrice(pl);
   if (low != displayedLow) {
-    tft.fillRect(195, 240 - bottomPanel / 2, 89, bottomPanel / 2, ILI9341_BLACK);
+    tft.fillRect(192, 240 - bottomPanel / 2, 91, bottomPanel / 2, ILI9341_BLACK);
     tft.setTextColor(ILI9341_WHITE);
     tft.setCursor(195, 243 - floor(bottomPanel / 2));
     tft.setTextSize(2);
@@ -425,13 +426,13 @@ void drawPrice() {
   ) {
     displayedTimeframe = currentTimeframe;
     displayedCurrency  = currentCurrency;
-    tft.fillRect(286, 240 - bottomPanel, 34, bottomPanel, ILI9341_BLACK);
+    tft.fillRect(283, 240 - bottomPanel, 37, bottomPanel, ILI9341_BLACK);
     tft.setTextColor(ILI9341_YELLOW);
     tft.setTextSize(2);
     tft.setCursor(286, 240 - bottomPanel);
-    tft.print(String(candlesCurrencies[currentCurrency]).substring(0, 3));
+    tft.print(currencyNames[currentCurrency]);
     tft.setCursor(286, 243 - floor(bottomPanel / 2));
-    tft.print(candlesTimeframes[currentTimeframe]);
+    tft.print(timeframes[currentTimeframe]);
   }
 }
 
