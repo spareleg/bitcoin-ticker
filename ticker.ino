@@ -29,8 +29,8 @@ const byte timeframeButtonPin = D0;
 const byte debounceDelay = 50;
 
 // Wi-Fi connection settings:
-const char* ssid     = ""; // wi-fi host
-const char* password = ""; // wi-fi password
+const char* ssid     = "Keenetic-6894"; // wi-fi host
+const char* password = "9nhhFP5X"; // wi-fi password
 
 // Time Zone:
 TimeChangeRule summer = {"EEST", Last, Sun, Mar, 3, 180};
