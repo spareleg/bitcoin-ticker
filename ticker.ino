@@ -24,9 +24,9 @@
 // ------------------------------------
 
 // Buttons settings
-const int currencyButtonPin = D8;
-const int timeframeButtonPin = D0;
-const unsigned long debounceDelay = 50;
+const byte currencyButtonPin = D8;
+const byte timeframeButtonPin = D0;
+const byte debounceDelay = 50;
 
 // Wi-Fi connection settings:
 const char* ssid     = ""; // wi-fi host
@@ -42,15 +42,15 @@ const char* restApiHost = "api.binance.com";
 const byte candlesLimit = 24;
 const byte totalTimeframes = 5;
 const char* candlesTimeframes[totalTimeframes] = {"3m", "1h", "1d", "1w", "1M"};
-const byte totalCurrencies = 2;
-const char* candlesCurrencies[totalCurrencies] = {"BTCUSDT", "ETHUSDT"};
+const byte totalCurrencies = 3;
+const char* candlesCurrencies[totalCurrencies] = {"BTCUSDT", "ETHUSDT", "ETHBTC"};
 // RGB565 Colors (https://rgbcolorpicker.com/565)
 const uint16_t volColor = 0x000f;
 const uint16_t brightRed = 0xFA08;
 
 // WS API DOCS: https://github.com/binance-exchange/binance-official-api-docs/blob/master/web-socket-streams.md
 const char* wsApiHost = "stream.binance.com";
-const int wsApiPort = 9443;
+const word wsApiPort = 9443;
 
 // Layout:
 const byte topPanel = 22;
@@ -78,10 +78,10 @@ float ph; // Price High
 float pl; // Price Low
 float vh; // Volume High
 
-int currencyButtonState;
-int timeframeButtonState;
-int lastCurrencyButtonState = LOW;
-int lastTimeframeButtonState = LOW;
+bool currencyButtonState;
+bool timeframeButtonState;
+bool lastCurrencyButtonState = LOW;
+bool lastTimeframeButtonState = LOW;
 unsigned long lastCurrencyButtonDebounceTime = 0;
 unsigned long lastTimeframeButtonDebounceTime = 0;
 
@@ -103,10 +103,10 @@ void setup() {
   tft.println(ssid);
   WiFi.mode(WIFI_STA);
   WiFiMulti.addAP(ssid, password);
-	while(WiFiMulti.run() != WL_CONNECTED) {
+  while(WiFiMulti.run() != WL_CONNECTED) {
     tft.print(".");
-		delay(500);
-	}
+    delay(500);
+  }
   tft.println("\nWiFi connected");
 
   // Settings time:
@@ -127,9 +127,9 @@ void setup() {
   drawCandles();
 
   // Connecting to WS:
-	webSocket.beginSSL(wsApiHost, wsApiPort, getWsApiUrl().c_str());
-	webSocket.onEvent(webSocketEvent);
-	webSocket.setReconnectInterval(1000);
+  webSocket.beginSSL(wsApiHost, wsApiPort, getWsApiUrl().c_str());
+  webSocket.onEvent(webSocketEvent);
+  webSocket.setReconnectInterval(1000);
 }
 
 byte currentCurrency = 0;
@@ -138,13 +138,13 @@ byte currentTimeframe = 0;
 void loop() {
   printTime();
 
-  int currencyButtonReading = digitalRead(currencyButtonPin);
+  bool currencyButtonReading = digitalRead(currencyButtonPin);
   if (currencyButtonReading != lastCurrencyButtonState) {
     lastCurrencyButtonDebounceTime = millis();
     lastCurrencyButtonState = currencyButtonReading;
   }
 
-  int timeframeButtonReading = digitalRead(timeframeButtonPin);
+  bool timeframeButtonReading = digitalRead(timeframeButtonPin);
   if (timeframeButtonReading != lastTimeframeButtonState) {
     lastTimeframeButtonDebounceTime = millis();
     lastTimeframeButtonState = timeframeButtonReading;
@@ -174,7 +174,7 @@ void loop() {
     }
   }
 
-	webSocket.loop();
+  webSocket.loop();
 }
 
 void redrawCharts() {
@@ -185,10 +185,10 @@ void redrawCharts() {
 }
 
 // Tracking last displayed minute to not redraw time if not changed
-int lastMinute = -1;
+byte displayedMinute = 255;
 
 void loadingMessage(String text) {
-  lastMinute = -1; // Forces to redraw time even if minute hasn't changed
+  displayedMinute = 255; // Forces to redraw time even if minute hasn't changed
   tft.fillRect(0, 0, 320, topPanel, ILI9341_BLACK);
   tft.setCursor(92, 0);
   tft.setTextSize(2);
@@ -198,9 +198,9 @@ void loadingMessage(String text) {
 
 void printTime() {
   time_t now = myTZ.toLocal(time(nullptr), &tcr);
-  int currentMinute = minute(now);
-  if (currentMinute == lastMinute) return;
-  lastMinute = currentMinute;
+  byte currentMinute = minute(now);
+  if (currentMinute == displayedMinute) return;
+  displayedMinute = currentMinute;
 
   tft.fillRect(0, 0, 320, topPanel, ILI9341_BLACK);
   tft.setCursor(-1, 0);
@@ -226,7 +226,7 @@ String getWsApiUrl() {
   return "/ws/" + s + "@kline_" + String(candlesTimeframes[currentTimeframe]);
 }
 
-unsigned int wsFails = 0;
+byte wsFails = 0;
 
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
@@ -251,7 +251,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       bool candleIsNew = openTime > lastCandleOpenTime;
       if (candleIsNew) {
         lastCandleOpenTime = openTime;
-        for (int i = 1; i < candlesLimit; i++) {
+        for (byte i = 1; i < candlesLimit; i++) {
           candles[i-1] = candles[i];
         }
       }
@@ -263,10 +263,10 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
       // If we get new low/high we need to redraw all candles, otherwise just last one:
       if (candleIsNew ||
-          candles[candlesLimit-1].l < pl ||
-          candles[candlesLimit-1].h > ph ||
-          candles[candlesLimit-1].v > vh)
-      {
+        candles[candlesLimit-1].l < pl ||
+        candles[candlesLimit-1].h > ph ||
+        candles[candlesLimit-1].v > vh
+      ) {
         drawCandles();
       } else {
         drawPrice();
@@ -303,7 +303,7 @@ bool requestRestApi() {
 
       // Data format: [[TS, OPEN, HIGH, LOW, CLOSE, VOL, ...], ...]
       JsonArray _candles = jsonDoc.as<JsonArray>();
-      for (int i = 0; i < candlesLimit; i++) {
+      for (byte i = 0; i < candlesLimit; i++) {
         candles[i].o = _candles[i][1];
         candles[i].h = _candles[i][2];
         candles[i].l = _candles[i][3];
@@ -323,7 +323,7 @@ void drawCandles() {
   ph = candles[0].h;
   pl = candles[0].l;
   vh = candles[0].v;
-  for (int i = 0; i < candlesLimit; i++) {
+  for (byte i = 0; i < candlesLimit; i++) {
     if (candles[i].h > ph) ph = candles[i].h;
     if (candles[i].l < pl) pl = candles[i].l;
     if (candles[i].v > vh) vh = candles[i].v;
@@ -333,26 +333,26 @@ void drawCandles() {
   drawPrice();
 
   // Draw candles:
-  for (int i = 0; i < candlesLimit; i++) {
+  for (byte i = 0; i < candlesLimit; i++) {
     drawCandle(i);
   }
 }
 
 // Remap dollars data to pixels
-int getY(float val, float minVal, float maxVal) {
+word getY(float val, float minVal, float maxVal) {
   float minValY = 235 - bottomPanel;
   float maxValY = topPanel + 2;
   return round((val - minVal) * (maxValY - minValY) / (maxVal - minVal) + minValY);
 }
 
 // Data format: [[TS, OPEN, HIGH, LOW, CLOSE, VOL, ...]]
-void drawCandle(int i) {
-  int oy = getY(candles[i].o, pl, ph);
-  int hy = getY(candles[i].h, pl, ph);
-  int ly = getY(candles[i].l, pl, ph);
-  int cy = getY(candles[i].c, pl, ph);
-  int vy = getY(candles[i].v, 0, vh);
-  int prevVY = vy;
+void drawCandle(byte i) {
+  word oy = getY(candles[i].o, pl, ph);
+  word hy = getY(candles[i].h, pl, ph);
+  word ly = getY(candles[i].l, pl, ph);
+  word cy = getY(candles[i].c, pl, ph);
+  word vy = getY(candles[i].v, 0, vh);
+  word prevVY = vy;
   if (i != 0) {
     prevVY = getY(candles[i-1].v, 0, vh);
   }
@@ -377,49 +377,54 @@ void drawCandle(int i) {
   tft.drawLine(center, hy, center, ly, color);
 
   // Candle body:
-  int bodyHeight = abs(cy - oy);
-  if (bodyHeight < 1) bodyHeight = 1; // at least 1px, if candle body not formed yet
+  word bodyHeight = abs(cy - oy);
+  if (bodyHeight == 0) bodyHeight = 1; // at least 1px, if candle body not formed yet
   tft.fillRect(center - 3, min(oy, cy), 7, bodyHeight, color);
 }
 
-// To track if chanded:
-int lastPrice = -1;
-float lastLow = -1;
-float lastHigh = -1;
-int displayedCurrency = -1;
-int displayedTimeframe = -1;
+// To track if changed:
+float displayedPriceF = -1;
+String displayedPrice = "";
+String displayedLow = "";
+String displayedHigh = "";
+byte displayedCurrency = 255;
+byte displayedTimeframe = 255;
 
 void drawPrice() {
-  int price = round(candles[candlesLimit-1].c);
-  if (lastPrice != price) {
-    tft.fillRect(0, 240 - bottomPanel, 192, bottomPanel, ILI9341_BLACK);
+  float priceF = candles[candlesLimit-1].c;
+  String price = formatPrice(priceF);
+  if (displayedPrice != price) {
+    tft.fillRect(0, 240 - bottomPanel, 193, bottomPanel, ILI9341_BLACK);
     tft.setCursor(0, 240 - bottomPanel);
     tft.setTextSize(5);
-    tft.setTextColor(price > lastPrice ? ILI9341_GREEN : brightRed);
-    lastPrice = price;
-    tft.print(formatPrice(price));
+    tft.setTextColor(priceF > displayedPriceF ? ILI9341_GREEN : brightRed);
+    tft.print(price);
+    displayedPrice = price;
+    displayedPriceF = priceF;
   }
-  if (ph != lastHigh) {
-    tft.fillRect(195, 240 - bottomPanel, 88, bottomPanel / 2, ILI9341_BLACK);
+  String high = formatPrice(ph);
+  if (high != displayedHigh) {
+    tft.fillRect(195, 240 - bottomPanel, 89, bottomPanel / 2, ILI9341_BLACK);
     tft.setTextColor(ILI9341_WHITE);
-    lastHigh = ph;
     tft.setCursor(195, 240 - bottomPanel);
     tft.setTextSize(2);
-    tft.print(formatPrice(round(ph)).c_str());
+    tft.print(high);
+    displayedHigh = high;
   }
-  if (pl != lastLow) {
-    tft.fillRect(195, 240 - bottomPanel / 2, 88, bottomPanel / 2, ILI9341_BLACK);
+  String low = formatPrice(pl);
+  if (low != displayedLow) {
+    tft.fillRect(195, 240 - bottomPanel / 2, 89, bottomPanel / 2, ILI9341_BLACK);
     tft.setTextColor(ILI9341_WHITE);
-    lastLow = pl;
     tft.setCursor(195, 243 - floor(bottomPanel / 2));
     tft.setTextSize(2);
-    tft.print(formatPrice(round(pl)).c_str());
+    tft.print(low);
+    displayedLow = low;
   }
   if (displayedTimeframe != currentTimeframe ||
       displayedCurrency  != currentCurrency
   ) {
     displayedTimeframe = currentTimeframe;
-    displayedCurrency = currentCurrency;
+    displayedCurrency  = currentCurrency;
     tft.fillRect(286, 240 - bottomPanel, 34, bottomPanel, ILI9341_BLACK);
     tft.setTextColor(ILI9341_YELLOW);
     tft.setTextSize(2);
@@ -430,16 +435,25 @@ void drawPrice() {
   }
 }
 
-String formatPrice(int n) {
+String formatPrice(float p) {
   char snum[6];
-  sprintf(snum, "%6d", n);
+  if (p < 10) {
+    sprintf(snum, "%6.4f", p);
+  } else if (p < 1000) {
+    sprintf(snum, "%6.2f", p);
+  } else if (p < 10000) {
+    sprintf(snum, "%6.1f", p);
+  } else {
+    int d = round(p);
+    sprintf(snum, "%6d", d);
+  }
   replaceZeros(snum);
   return snum;
 }
 
 // Replaces zeros with capital letter "o"
 void replaceZeros(char num[]) {
-  for (int i = 0; i< strlen(num); i++) {
+  for (byte i = 0; i < strlen(num); i++) {
     if (num[i] == '0') num[i] = 'O';
   }
 }
@@ -454,6 +468,8 @@ void error(String text) {
   tft.setTextWrap(false);
   delay(5000);
   // Reset last data to make it redraw after error screen
-  lastPrice = lastLow = lastHigh = displayedTimeframe = displayedCurrency = -1;
+  displayedPriceF = -1;
+  displayedPrice = displayedLow = displayedHigh = "";
+  displayedTimeframe = displayedCurrency = displayedMinute = 255;
   drawCandles();
 }
