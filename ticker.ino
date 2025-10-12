@@ -7,9 +7,9 @@
 #include <ESP8266WiFiMulti.h> // Board   | esp8266          | ESP8266 Community | 3.1.*   |
 #include <Timezone.h>         // Library | Timezone         | Jack Christensen  | 1.2.*   |
 #include <time.h>             // Library | Time             | Michael Margolis  | 1.6.*   |
-#include <WebSocketsClient.h> // Library | WebSockets       | Markus Sattler    | 2.6.*   |
-#include <ArduinoJson.h>      // Library | ArduinoJson      | Benoit Blanchon   | 7.3.*   |
-#include "Adafruit_GFX.h"     // Library | Adafruit GFX     | Adafruit          | 1.10.14 | 1.11.* prints text with too much blinking
+#include <WebSocketsClient.h> // Library | WebSockets       | Markus Sattler    | 2.7.*   |
+#include <ArduinoJson.h>      // Library | ArduinoJson      | Benoit Blanchon   | 7.4.*   |
+#include "Adafruit_GFX.h"     // Library | Adafruit GFX     | Adafruit          | 1.10.14 | 1.11.* and 1.12.* print text with too much blinking
 #include "Adafruit_ILI9341.h" // Library | Adafruit ILI9341 | Adafruit          | 1.6.*   |
 //---------------------------------------+------------------+-------------------+---------+
 // To install library in Arduino IDE: Sketch -> Include Library -> Manage Libraries
@@ -216,7 +216,7 @@ void printTime() {
 }
 
 String getRestApiUrl() {
-  return "/api/v1/klines?symbol=" + String(currencies[currentCurrency]) +
+  return "/api/v3/klines?symbol=" + String(currencies[currentCurrency]) +
          "&interval=" + String(timeframes[currentTimeframe]) +
          "&limit=" + String(candlesLimit);
 }
